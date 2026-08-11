@@ -138,7 +138,7 @@ def calculate_salary(
     }
 
 # ==============================================================================
-# 2. ИНТЕРФЕЙС FLET
+# 2. ИНТЕРФЕЙС FLET (КАСТОМНЫЕ ВКЛАДКИ)
 # ==============================================================================
 
 def main(page: ft.Page):
@@ -309,45 +309,66 @@ def main(page: ft.Page):
         save_state()
         page.update()
 
-    tabs = ft.Tabs(
-        selected_index=0,
-        animation_duration=300,
-        tabs=[
-            ft.Tab(
-                tab_content=ft.Text("Смены"),
-                content=ft.Container(
-                    padding=10,
-                    content=ft.Column([
-                        inputs["days_worked_normal"],
-                        inputs["evening_shifts"],
-                        inputs["days_pre_holiday_reduced"],
-                        inputs["days_pre_holiday_reduced_evening"],
-                    ], spacing=15)
-                ),
-            ),
-            ft.Tab(
-                tab_content=ft.Text("Часы / Переработки"),
-                content=ft.Container(
-                    padding=10,
-                    content=ft.Column([
-                        inputs["hours_overtime_first_two"],
-                        inputs["hours_overtime_after_two"],
-                        inputs["hours_weekend_holiday"],
-                        inputs["days_non_working_holiday"],
-                        inputs["hours_night"],
-                    ], spacing=15)
-                ),
-            ),
-        ],
-        expand=1
+    # --- ЗАМЕНА ft.Tabs НА КАСТОМНЫЕ ВКЛАДКИ ---
+    
+    shifts_view = ft.Column([
+        inputs["days_worked_normal"],
+        inputs["evening_shifts"],
+        inputs["days_pre_holiday_reduced"],
+        inputs["days_pre_holiday_reduced_evening"],
+    ], spacing=15, visible=True)
+
+    hours_view = ft.Column([
+        inputs["hours_overtime_first_two"],
+        inputs["hours_overtime_after_two"],
+        inputs["hours_weekend_holiday"],
+        inputs["days_non_working_holiday"],
+        inputs["hours_night"],
+    ], spacing=15, visible=False)
+
+    def switch_tab(target):
+        shifts_view.visible = (target == "shifts")
+        hours_view.visible = (target == "hours")
+        
+        tab_btn_shifts.style = ft.ButtonStyle(
+            bgcolor=ft.Colors.BLUE_50 if target == "shifts" else ft.Colors.TRANSPARENT,
+            color=ft.Colors.BLUE if target == "shifts" else ft.Colors.ON_SURFACE
+        )
+        tab_btn_hours.style = ft.ButtonStyle(
+            bgcolor=ft.Colors.BLUE_50 if target == "hours" else ft.Colors.TRANSPARENT,
+            color=ft.Colors.BLUE if target == "hours" else ft.Colors.ON_SURFACE
+        )
+        page.update()
+
+    tab_btn_shifts = ft.TextButton(
+        "Смены",
+        on_click=lambda e: switch_tab("shifts"),
+        expand=True,
+        style=ft.ButtonStyle(bgcolor=ft.Colors.BLUE_50, color=ft.Colors.BLUE)
     )
+    
+    tab_btn_hours = ft.TextButton(
+        "Часы / Переработки",
+        on_click=lambda e: switch_tab("hours"),
+        expand=True,
+        style=ft.ButtonStyle(bgcolor=ft.Colors.TRANSPARENT, color=ft.Colors.ON_SURFACE)
+    )
+
+    custom_tabs_ui = ft.Column([
+        ft.Row([tab_btn_shifts, tab_btn_hours], alignment=ft.MainAxisAlignment.CENTER, spacing=0),
+        ft.Divider(height=1),
+        ft.Container(content=shifts_view, padding=ft.padding.only(top=10, bottom=10)),
+        ft.Container(content=hours_view, padding=ft.padding.only(top=10, bottom=10))
+    ], height=380, scroll=ft.ScrollMode.AUTO)
+
+    # -------------------------------------------
 
     page.add(
         ft.Row([
             ft.Text("Калькулятор ЗП", size=24, weight=ft.FontWeight.BOLD, expand=True),
             ft.IconButton(icon=ft.Icons.SETTINGS, on_click=open_settings, tooltip="Настройки")
         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-        ft.Container(content=tabs, height=380),
+        custom_tabs_ui,  # Используем кастомные вкладки вместо ft.Tabs
         ft.Row([
             ft.ElevatedButton("Рассчитать", on_click=calculate_click, expand=True, height=50, bgcolor=ft.Colors.BLUE, color=ft.Colors.WHITE),
             ft.OutlinedButton("Очистить", on_click=clear_click, height=50),
@@ -362,4 +383,3 @@ def main(page: ft.Page):
 
 if __name__ == "__main__":
     ft.app(main)
-
