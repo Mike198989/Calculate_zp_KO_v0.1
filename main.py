@@ -28,16 +28,9 @@ def calculate_salary(
     ndfl_rate: float = 0.13,
     bonus_percent_of_base_hours: float = 0.0
 ) -> dict:
-    if any(arg < 0 for arg in [
-        hourly_rate, days_worked_normal, days_pre_holiday_reduced, days_pre_holiday_reduced_evening, evening_shifts, hours_overtime_first_two, hours_overtime_after_two,
-        hours_weekend_holiday, days_non_working_holiday,
-        hours_night, overtime_multiplier_first_two_hours, overtime_multiplier_after_two_hours,
-        weekend_holiday_multiplier, non_working_holiday_multiplier,
-        night_surcharge_percent, evening_surcharge_percent, hazard_surcharge_percent,
-        difficulty_surcharge_percent,
-        ndfl_rate, bonus_percent_of_base_hours
-    ]):
-        raise ValueError("Все входные параметры должны быть неотрицательными.")
+    for key, val in locals().items():
+        if isinstance(val, (int, float)) and val < 0:
+            raise ValueError(f"Параметр '{key}' не может быть отрицательным.")
 
     hours_worked_scheduled_full = days_worked_normal * 8
     hours_reduction_total = days_pre_holiday_reduced * 1.0
@@ -67,17 +60,14 @@ def calculate_salary(
 
     overtime_payment_first_two = 0
     overtime_payment_after_two = 0
-    total_overtime_surcharge = 0
 
     if hours_overtime_first_two > 0:
         overtime_base_pay_first_two = hours_overtime_first_two * rate_with_hazard_surcharge
         overtime_payment_first_two = overtime_base_pay_first_two * overtime_multiplier_first_two_hours
-        total_overtime_surcharge += overtime_base_pay_first_two * (overtime_multiplier_first_two_hours - 1)
 
     if hours_overtime_after_two > 0:
         overtime_base_pay_after_two = hours_overtime_after_two * rate_with_hazard_surcharge
         overtime_payment_after_two = overtime_base_pay_after_two * overtime_multiplier_after_two_hours
-        total_overtime_surcharge += overtime_base_pay_after_two * (overtime_multiplier_after_two_hours - 1)
 
     total_overtime_payment = overtime_payment_first_two + overtime_payment_after_two
 
@@ -174,17 +164,16 @@ def main(page: ft.Page):
         "bonus_percent_of_base_hours": 0.95,
     }
     
+    coefficients = default_coefficients.copy()
     if os.path.exists(settings_file):
         try:
             with open(settings_file, "r", encoding="utf-8") as f:
-                coefficients = json.load(f).get("coefficients", default_coefficients)
+                loaded = json.load(f)
+                coefficients.update(loaded)
         except:
-            coefficients = default_coefficients
-    else:
-        coefficients = default_coefficients
+            pass
 
     inputs = {}
-    
     fields_config = [
         ("days_worked_normal", "Всего отработано смен", "0"),
         ("evening_shifts", "Количество вечерних смен", "0"),
@@ -227,12 +216,69 @@ def main(page: ft.Page):
         except:
             pass
 
+    def parse_float(field: ft.TextField) -> float:
+        val_str = field.value.strip().replace(",", ".")
+        if not val_str:
+            return 0.0
+        try:
+            return float(val_str)
+        except ValueError:
+            field.border_color = ft.Colors.RED
+            field.update()
+            raise ValueError(f"Неверный формат числа в поле '{field.label}'")
+
+    # Окно настроек коэффициентов
+    setting_fields = {}
+    def open_settings(e):
+        setting_fields.clear()
+        content_col = ft.Column(scroll=ft.ScrollMode.AUTO, height=400, spacing=10)
+        
+        for k, v in coefficients.items():
+            tf = ft.TextField(label=k, value=str(v), keyboard_type=ft.KeyboardType.NUMBER)
+            setting_fields[k] = tf
+            content_col.controls.append(tf)
+
+        def save_settings_click(e):
+            try:
+                for k, tf in setting_fields.items():
+                    val = float(tf.value.strip().replace(",", "."))
+                    if val < 0:
+                        raise ValueError(f"Коэффициент {k} не может быть < 0")
+                    coefficients[k] = val
+                
+                with open(settings_file, "w", encoding="utf-8") as f:
+                    json.dump(coefficients, f, ensure_ascii=False, indent=4)
+                
+                page.dialog.open = False
+                page.snack_bar = ft.SnackBar(ft.Text("Настройки сохранены!"), bgcolor=ft.Colors.GREEN_400)
+                page.snack_bar.open = True
+                page.update()
+            except Exception as err:
+                page.snack_bar = ft.SnackBar(ft.Text(f"Ошибка в настройках: {err}"), bgcolor=ft.Colors.RED_400)
+                page.snack_bar.open = True
+                page.update()
+
+        dialog = ft.AlertDialog(
+            title=ft.Text("Настройки коэффициентов"),
+            content=content_col,
+            actions=[
+                ft.TextButton("Отмена", on_click=lambda _: setattr(dialog, 'open', False) or page.update()),
+                ft.ElevatedButton("Сохранить", on_click=save_settings_click)
+            ]
+        )
+        page.dialog = dialog
+        dialog.open = True
+        page.update()
+
     def calculate_click(e):
+        # Сброс подсветки полей
+        for field in inputs.values():
+            field.border_color = None
+
         try:
             params = {}
             for k, field in inputs.items():
-                val_str = field.value.strip().replace(",", ".")
-                params[k] = float(val_str) if val_str else 0.0
+                params[k] = parse_float(field)
             
             params.update(coefficients)
             result = calculate_salary(**params)
@@ -253,13 +299,14 @@ def main(page: ft.Page):
             save_state()
             page.update()
         except ValueError as err:
-            page.snack_bar = ft.SnackBar(ft.Text(f"Ошибка в данных: {err}"), bgcolor=ft.Colors.RED_400)
+            page.snack_bar = ft.SnackBar(ft.Text(f"{err}"), bgcolor=ft.Colors.RED_400)
             page.snack_bar.open = True
             page.update()
 
     def clear_click(e):
         for field in inputs.values():
             field.value = "0"
+            field.border_color = None
         net_output.value = "0.00 руб."
         details_column.controls.clear()
         save_state()
@@ -270,8 +317,8 @@ def main(page: ft.Page):
         animation_duration=300,
         tabs=[
             ft.Tab(
-                label="Смены",
-                content=ft.Container(
+                text="Смены",
+                body=ft.Container(
                     padding=10,
                     content=ft.Column([
                         inputs["days_worked_normal"],
@@ -282,8 +329,8 @@ def main(page: ft.Page):
                 ),
             ),
             ft.Tab(
-                label="Часы / Переработки",
-                content=ft.Container(
+                text="Часы / Переработки",
+                body=ft.Container(
                     padding=10,
                     content=ft.Column([
                         inputs["hours_overtime_first_two"],
@@ -299,7 +346,10 @@ def main(page: ft.Page):
     )
 
     page.add(
-        ft.Text("Калькулятор ЗП", size=24, weight=ft.FontWeight.BOLD),
+        ft.Row([
+            ft.Text("Калькулятор ЗП", size=24, weight=ft.FontWeight.BOLD, expand=True),
+            ft.IconButton(icon=ft.Icons.SETTINGS, on_click=open_settings, tooltip="Настройки")
+        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
         ft.Container(content=tabs, height=380),
         ft.Row([
             ft.ElevatedButton("Рассчитать", on_click=calculate_click, expand=True, height=50, bgcolor=ft.Colors.BLUE, color=ft.Colors.WHITE),
