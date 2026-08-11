@@ -206,7 +206,6 @@ def main(page: ft.Page):
     net_output = ft.Text("0.00 руб.", size=28, weight=ft.FontWeight.BOLD)
     details_column = ft.Column()
 
-    # Вспомогательные функции открывания/закрывания диалогов для любых версий Flet
     def open_dialog(dlg):
         if hasattr(page, "open"):
             page.open(dlg)
@@ -359,10 +358,17 @@ def main(page: ft.Page):
         ft.Container(content=hours_view, padding=10)
     ])
 
+    # Использование explicit content гарантирует корректную сборку IconButton во всех версиях Flet
+    settings_button = ft.IconButton(
+        content=ft.Text("⚙", size=22),
+        on_click=open_settings,
+        tooltip="Настройки"
+    )
+
     page.add(
         ft.Row([
             ft.Text("Калькулятор ЗП", size=24, weight=ft.FontWeight.BOLD, expand=True),
-            ft.IconButton(icon="settings", on_click=open_settings, tooltip="Настройки")
+            settings_button
         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
         custom_tabs_ui,
         ft.Row([
