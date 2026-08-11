@@ -207,28 +207,19 @@ def main(page: ft.Page):
     details_column = ft.Column()
 
     def open_dialog(dlg):
-        if hasattr(page, "open"):
-            page.open(dlg)
-        else:
-            page.dialog = dlg
-            dlg.open = True
-            page.update()
+        page.dialog = dlg
+        dlg.open = True
+        page.update()
 
     def close_dialog(dlg):
-        if hasattr(page, "close"):
-            page.close(dlg)
-        else:
-            dlg.open = False
-            page.update()
+        dlg.open = False
+        page.update()
 
     def show_snack(text):
         sb = ft.SnackBar(ft.Text(text))
-        if hasattr(page, "open"):
-            page.open(sb)
-        else:
-            page.snack_bar = sb
-            sb.open = True
-            page.update()
+        page.snack_bar = sb
+        sb.open = True
+        page.update()
 
     def save_state():
         data = {k: v.value for k, v in inputs.items()}
@@ -323,14 +314,16 @@ def main(page: ft.Page):
         save_state()
         page.update()
 
+    # Вкладка 1: Только смены
     shifts_view = ft.Column([
         inputs["days_worked_normal"],
         inputs["evening_shifts"],
-        inputs["days_pre_holiday_reduced"],
-        inputs["days_pre_holiday_reduced_evening"],
     ], spacing=15, visible=True)
 
+    # Вкладка 2: Переработки, сокращенные дни и прочие часы
     hours_view = ft.Column([
+        inputs["days_pre_holiday_reduced"],
+        inputs["days_pre_holiday_reduced_evening"],
         inputs["hours_overtime_first_two"],
         inputs["hours_overtime_after_two"],
         inputs["hours_weekend_holiday"],
@@ -358,7 +351,6 @@ def main(page: ft.Page):
         ft.Container(content=hours_view, padding=10)
     ])
 
-    # Определение иконки через системные константы Flet
     try:
         icon_name = ft.icons.SETTINGS
     except AttributeError:
@@ -393,4 +385,3 @@ def main(page: ft.Page):
 
 if __name__ == "__main__":
     ft.app(target=main)
-
