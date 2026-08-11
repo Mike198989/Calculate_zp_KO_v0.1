@@ -170,7 +170,7 @@ def main(page: ft.Page):
             with open(settings_file, "r", encoding="utf-8") as f:
                 loaded = json.load(f)
                 coefficients.update(loaded)
-        except:
+        except Exception:
             pass
 
     inputs = {}
@@ -191,14 +191,14 @@ def main(page: ft.Page):
         try:
             with open(last_input_file, "r", encoding="utf-8") as f:
                 saved_inputs = json.load(f)
-        except:
+        except Exception:
             pass
 
     for key, label, default_val in fields_config:
         val = saved_inputs.get(key, default_val)
         inputs[key] = ft.TextField(
             label=label,
-            value=str(val),
+            value=str(val if val is not None else default_val),
             keyboard_type=ft.KeyboardType.NUMBER,
             height=55,
         )
@@ -207,30 +207,40 @@ def main(page: ft.Page):
     details_column = ft.Column()
 
     def open_dialog(dlg):
-        page.dialog = dlg
-        dlg.open = True
-        page.update()
+        try:
+            page.open(dlg)
+        except Exception:
+            page.dialog = dlg
+            dlg.open = True
+            page.update()
 
     def close_dialog(dlg):
-        dlg.open = False
-        page.update()
+        try:
+            page.close(dlg)
+        except Exception:
+            dlg.open = False
+            page.update()
 
     def show_snack(text):
         sb = ft.SnackBar(ft.Text(text))
-        page.snack_bar = sb
-        sb.open = True
-        page.update()
+        try:
+            page.open(sb)
+        except Exception:
+            page.snack_bar = sb
+            sb.open = True
+            page.update()
 
     def save_state():
         data = {k: v.value for k, v in inputs.items()}
         try:
             with open(last_input_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=4)
-        except:
+        except Exception:
             pass
 
     def parse_float(field: ft.TextField) -> float:
-        val_str = field.value.strip().replace(",", ".")
+        raw_val = field.value or ""
+        val_str = raw_val.strip().replace(",", ".")
         if not val_str:
             return 0.0
         try:
@@ -252,9 +262,13 @@ def main(page: ft.Page):
         def save_settings_click(e_save):
             try:
                 for k, tf in setting_fields.items():
-                    val = float(tf.value.strip().replace(",", "."))
+                    raw_val = tf.value or ""
+                    val_str = raw_val.strip().replace(",", ".")
+                    if not val_str:
+                        raise ValueError(f"Поле '{k}' не может быть пустым")
+                    val = float(val_str)
                     if val < 0:
-                        raise ValueError(f"Коэффициент {k} не может быть < 0")
+                        raise ValueError(f"Коэффициент '{k}' не может быть < 0")
                     coefficients[k] = val
                 
                 with open(settings_file, "w", encoding="utf-8") as f:
@@ -314,7 +328,7 @@ def main(page: ft.Page):
         save_state()
         page.update()
 
-    # Вкладка 1: Только смены
+    # Вкладка 1: Смены
     shifts_view = ft.Column([
         inputs["days_worked_normal"],
         inputs["evening_shifts"],
