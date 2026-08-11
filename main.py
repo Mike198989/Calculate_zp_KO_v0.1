@@ -358,9 +358,17 @@ def main(page: ft.Page):
         ft.Container(content=hours_view, padding=10)
     ])
 
-    # Использование explicit content гарантирует корректную сборку IconButton во всех версиях Flet
+    # Определение иконки через системные константы Flet
+    try:
+        icon_name = ft.icons.SETTINGS
+    except AttributeError:
+        try:
+            icon_name = ft.Icons.SETTINGS
+        except AttributeError:
+            icon_name = "settings"
+
     settings_button = ft.IconButton(
-        content=ft.Text("⚙", size=22),
+        icon=icon_name,
         on_click=open_settings,
         tooltip="Настройки"
     )
@@ -385,3 +393,4 @@ def main(page: ft.Page):
 
 if __name__ == "__main__":
     ft.app(target=main)
+
