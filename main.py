@@ -227,10 +227,8 @@ def main(page: ft.Page):
             field.update()
             raise ValueError(f"Неверный формат числа в поле '{field.label}'")
 
-    # Окно настроек коэффициентов
-    setting_fields = {}
     def open_settings(e):
-        setting_fields.clear()
+        setting_fields = {}
         content_col = ft.Column(scroll=ft.ScrollMode.AUTO, height=400, spacing=10)
         
         for k, v in coefficients.items():
@@ -271,7 +269,6 @@ def main(page: ft.Page):
         page.update()
 
     def calculate_click(e):
-        # Сброс подсветки полей
         for field in inputs.values():
             field.border_color = None
 
@@ -317,8 +314,8 @@ def main(page: ft.Page):
         animation_duration=300,
         tabs=[
             ft.Tab(
-                text="Смены",
-                body=ft.Container(
+                tab_content=ft.Text("Смены"),
+                content=ft.Container(
                     padding=10,
                     content=ft.Column([
                         inputs["days_worked_normal"],
@@ -329,8 +326,8 @@ def main(page: ft.Page):
                 ),
             ),
             ft.Tab(
-                text="Часы / Переработки",
-                body=ft.Container(
+                tab_content=ft.Text("Часы / Переработки"),
+                content=ft.Container(
                     padding=10,
                     content=ft.Column([
                         inputs["hours_overtime_first_two"],
@@ -365,3 +362,4 @@ def main(page: ft.Page):
 
 if __name__ == "__main__":
     ft.app(main)
+
