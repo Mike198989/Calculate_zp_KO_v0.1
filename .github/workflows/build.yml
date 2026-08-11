@@ -1,0 +1,34 @@
+name: Build Flet APK
+
+on:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Flet CLI and dependencies
+        run: |
+          pip install --upgrade pip
+          pip install flet
+          pip install -r requirements.txt
+
+      - name: Build Android APK
+        run: |
+          flet build apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-apk
+          path: build/apk/*.apk
+
