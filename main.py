@@ -270,7 +270,7 @@ def main(page: ft.Page):
         animation_duration=300,
         tabs=[
             ft.Tab(
-                tab_content=ft.Text("Смены"),
+                label="Смены",
                 content=ft.Container(
                     padding=10,
                     content=ft.Column([
@@ -282,7 +282,7 @@ def main(page: ft.Page):
                 ),
             ),
             ft.Tab(
-                tab_content=ft.Text("Часы / Переработки"),
+                label="Часы / Переработки",
                 content=ft.Container(
                     padding=10,
                     content=ft.Column([
