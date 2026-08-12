@@ -203,23 +203,33 @@ def main(page: ft.Page):
             height=55,
         )
 
+    # Настройки коэффициентов
+    settings_inputs = {}
+    coefficients_config = [
+        ("hourly_rate", "Часовая ставка (руб.)"),
+        ("overtime_multiplier_first_two_hours", "Множитель сверхурочных (1-2 ч)"),
+        ("overtime_multiplier_after_two_hours", "Множитель сверхурочных (после 2 ч)"),
+        ("weekend_holiday_multiplier", "Множитель вых./праздников (часы)"),
+        ("non_working_holiday_multiplier", "Множитель праздничных дней"),
+        ("night_surcharge_percent", "Доплата за ночь (доля, напр. 0.2)"),
+        ("evening_surcharge_percent", "Доплата за вечер (доля, напр. 0.2)"),
+        ("hazard_surcharge_percent", "Вредность (доля, напр. 0.12)"),
+        ("difficulty_surcharge_percent", "Сложность (доля, напр. 0.1)"),
+        ("ndfl_rate", "НДФЛ (доля, напр. 0.13)"),
+        ("bonus_percent_of_base_hours", "Премия от базы (доля, напр. 0.95)"),
+    ]
+
+    for k, label in coefficients_config:
+        val = coefficients.get(k, 0)
+        settings_inputs[k] = ft.TextField(
+            label=label,
+            value=str(val),
+            keyboard_type=ft.KeyboardType.NUMBER,
+            height=55,
+        )
+
     net_output = ft.Text("0.00 руб.", size=28, weight=ft.FontWeight.BOLD)
     details_column = ft.Column()
-
-    def open_dialog(dlg):
-        try:
-            page.open(dlg)
-        except Exception:
-            page.dialog = dlg
-            dlg.open = True
-            page.update()
-
-    def close_dialog(dlg):
-        try:
-            page.close(dlg)
-        except Exception:
-            dlg.open = False
-            page.update()
 
     def show_snack(text):
         sb = ft.SnackBar(ft.Text(text))
@@ -250,44 +260,24 @@ def main(page: ft.Page):
             field.update()
             raise ValueError(f"Неверный формат числа в поле '{field.label}'")
 
-    def open_settings(e):
-        setting_fields = {}
-        content_col = ft.Column(scroll=ft.ScrollMode.AUTO, height=350, spacing=10)
-        
-        for k, v in coefficients.items():
-            tf = ft.TextField(label=k, value=str(v), keyboard_type=ft.KeyboardType.NUMBER)
-            setting_fields[k] = tf
-            content_col.controls.append(tf)
-
-        def save_settings_click(e_save):
-            try:
-                for k, tf in setting_fields.items():
-                    raw_val = tf.value or ""
-                    val_str = raw_val.strip().replace(",", ".")
-                    if not val_str:
-                        raise ValueError(f"Поле '{k}' не может быть пустым")
-                    val = float(val_str)
-                    if val < 0:
-                        raise ValueError(f"Коэффициент '{k}' не может быть < 0")
-                    coefficients[k] = val
-                
-                with open(settings_file, "w", encoding="utf-8") as f:
-                    json.dump(coefficients, f, ensure_ascii=False, indent=4)
-                
-                close_dialog(dialog)
-                show_snack("Настройки сохранены!")
-            except Exception as err:
-                show_snack(f"Ошибка в настройках: {err}")
-
-        dialog = ft.AlertDialog(
-            title=ft.Text("Настройки коэффициентов"),
-            content=content_col,
-            actions=[
-                ft.TextButton("Отмена", on_click=lambda _: close_dialog(dialog)),
-                ft.ElevatedButton("Сохранить", on_click=save_settings_click)
-            ]
-        )
-        open_dialog(dialog)
+    def save_settings_click(e):
+        try:
+            for k, tf in settings_inputs.items():
+                raw_val = tf.value or ""
+                val_str = raw_val.strip().replace(",", ".")
+                if not val_str:
+                    raise ValueError(f"Поле '{k}' не может быть пустым")
+                val = float(val_str)
+                if val < 0:
+                    raise ValueError(f"Коэффициент '{k}' не может быть < 0")
+                coefficients[k] = val
+            
+            with open(settings_file, "w", encoding="utf-8") as f:
+                json.dump(coefficients, f, ensure_ascii=False, indent=4)
+            
+            show_snack("Настройки сохранены!")
+        except Exception as err:
+            show_snack(f"Ошибка в настройках: {err}")
 
     def calculate_click(e):
         for field in inputs.values():
@@ -334,7 +324,7 @@ def main(page: ft.Page):
         inputs["evening_shifts"],
     ], spacing=15, visible=True)
 
-    # Вкладка 2: Переработки, сокращенные дни и прочие часы
+    # Вкладка 2: Часы / Переработки
     hours_view = ft.Column([
         inputs["days_pre_holiday_reduced"],
         inputs["days_pre_holiday_reduced_evening"],
@@ -345,45 +335,44 @@ def main(page: ft.Page):
         inputs["hours_night"],
     ], spacing=15, visible=False)
 
+    # Вкладка 3: Настройки
+    settings_view = ft.Column([
+        *[tf for tf in settings_inputs.values()],
+        ft.ElevatedButton("Сохранить настройки", on_click=save_settings_click, height=45)
+    ], spacing=15, visible=False)
+
     def show_shifts(e):
         shifts_view.visible = True
         hours_view.visible = False
+        settings_view.visible = False
         page.update()
 
     def show_hours(e):
         shifts_view.visible = False
         hours_view.visible = True
+        settings_view.visible = False
+        page.update()
+
+    def show_settings_tab(e):
+        shifts_view.visible = False
+        hours_view.visible = False
+        settings_view.visible = True
         page.update()
 
     tab_btn_shifts = ft.TextButton("Смены", on_click=show_shifts, expand=True)
-    tab_btn_hours = ft.TextButton("Часы / Переработки", on_click=show_hours, expand=True)
+    tab_btn_hours = ft.TextButton("Часы / Перераб.", on_click=show_hours, expand=True)
+    tab_btn_settings = ft.TextButton("Настройки", on_click=show_settings_tab, expand=True)
 
     custom_tabs_ui = ft.Column([
-        ft.Row([tab_btn_shifts, tab_btn_hours], alignment=ft.MainAxisAlignment.CENTER, spacing=0),
+        ft.Row([tab_btn_shifts, tab_btn_hours, tab_btn_settings], alignment=ft.MainAxisAlignment.CENTER, spacing=0),
         ft.Divider(height=1),
         ft.Container(content=shifts_view, padding=10),
-        ft.Container(content=hours_view, padding=10)
+        ft.Container(content=hours_view, padding=10),
+        ft.Container(content=settings_view, padding=10)
     ])
 
-    try:
-        icon_name = ft.icons.SETTINGS
-    except AttributeError:
-        try:
-            icon_name = ft.Icons.SETTINGS
-        except AttributeError:
-            icon_name = "settings"
-
-    settings_button = ft.IconButton(
-        icon=icon_name,
-        on_click=open_settings,
-        tooltip="Настройки"
-    )
-
     page.add(
-        ft.Row([
-            ft.Text("Калькулятор ЗП", size=24, weight=ft.FontWeight.BOLD, expand=True),
-            settings_button
-        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+        ft.Text("Калькулятор ЗП", size=24, weight=ft.FontWeight.BOLD),
         custom_tabs_ui,
         ft.Row([
             ft.ElevatedButton("Рассчитать", on_click=calculate_click, expand=True, height=50),
